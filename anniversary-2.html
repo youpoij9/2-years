@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<!--
+  ✦ سنتين — موقع الذكرى ✦
+  ------------------------------------------------------
+  عشان تعدّل المحتوى (الأسماء، التاريخ، الرسايل، النكت، الأرقام):
+  انزل لـ <script> تحت وعدّل في كائن CONFIG بس. مش محتاج تلمس باقي الكود.
+  كل سطر فيه [..] أو 🔧 معناه ده المكان اللي تحط فيه التفاصيل الحقيقية بتاعتكم.
+  ------------------------------------------------------
+-->
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>سنتين 🤍 شات بينا</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Lalezar&family=Almarai:wght@400;700;800&family=JetBrains+Mono:wght@500;600&display=swap');
+
+:root{
+  --bg:#0d0d12;
+  --bg-elevated:#17171f;
+  --bubble-sent:#ff3d7f;
+  --bubble-sent-text:#fff5f8;
+  --bubble-received:#1f1f2b;
+  --bubble-received-text:#f1efe9;
+  --accent:#c8ff4d;
+  --text:#f1efe9;
+  --text-dim:#8d8da0;
+  --divider:#26262f;
+  --radius:18px;
+  --font-display:'Lalezar', sans-serif;
+  --font-body:'Almarai', sans-serif;
+  --font-mono:'JetBrains Mono', monospace;
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit; cursor:pointer; background:none; border:none; color:inherit;}
+:focus-visible{outline:3px solid var(--accent); outline-offset:3px; border-radius:6px;}
+
+/* ===== Lock screen ===== */
+#lock{
+  position:fixed; inset:0; z-index:50;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  background:radial-gradient(circle at 50% 30%, #1d1424 0%, #0d0d12 70%);
+  text-align:center; padding:24px;
+  transition:opacity .6s ease, transform .6s ease;
+}
+#lock.hide{opacity:0; transform:scale(1.05); pointer-events:none;}
+.lock-heart{font-size:54px; animation:pulse 1.8s ease-in-out infinite;}
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.15);}}
+.lock-title{font-family:var(--font-display); font-size:clamp(2.2rem,8vw,3.2rem); color:var(--accent); margin:14px 0 4px;}
+.lock-sub{color:var(--text-dim); font-size:.95rem; margin-bottom:6px;}
+.lock-days{font-family:var(--font-mono); font-size:.85rem; color:var(--text-dim); margin-bottom:28px; letter-spacing:.5px;}
+.enter-btn{
+  font-family:var(--font-body); font-weight:800; font-size:1rem;
+  color:#0d0d12; background:var(--accent); padding:14px 32px; border-radius:999px;
+  box-shadow:0 0 0 0 rgba(200,255,77,.5); animation:glow 2.4s ease-in-out infinite;
+}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(200,255,77,.35);}50%{box-shadow:0 0 0 14px rgba(200,255,77,0);}}
+
+/* ===== App shell ===== */
+#app{display:none; min-height:100vh; flex-direction:column;}
+#app.visible{display:flex;}
+
+.app-header{
+  position:sticky; top:0; z-index:20;
+  display:flex; align-items:center; gap:12px; padding:12px 16px;
+  background:rgba(13,13,18,.85); backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--divider);
+}
+.back-arrow{font-size:1.2rem; color:var(--text-dim); padding:4px;}
+.avatar{
+  width:42px; height:42px; border-radius:50%; flex:none;
+  background:linear-gradient(135deg,var(--bubble-sent),#ff8fb3);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-display); font-size:1.1rem; color:#fff;
+}
+.header-info{flex:1; min-width:0;}
+.header-name{font-weight:800; font-size:1rem;}
+.header-status{display:flex; align-items:center; gap:6px; font-size:.78rem; color:var(--text-dim);}
+.status-dot{width:7px; height:7px; border-radius:50%; background:#4ade80; animation:dotpulse 1.6s ease-in-out infinite;}
+@keyframes dotpulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.header-days{
+  font-family:var(--font-mono); font-size:.78rem; color:var(--accent);
+  background:rgba(200,255,77,.1); padding:6px 10px; border-radius:999px; white-space:nowrap;
+}
+
+/* ===== Thread ===== */
+#thread{padding:20px 14px 10px; display:flex; flex-direction:column; gap:10px; max-width:560px; margin:0 auto; width:100%;}
+
+.date-chip{
+  align-self:center; background:var(--bg-elevated); color:var(--text-dim);
+  font-size:.78rem; padding:6px 16px; border-radius:999px; margin:14px 0 4px;
+  opacity:0; transform:translateY(10px); transition:opacity .5s ease, transform .5s ease;
+}
+.date-chip.show{opacity:1; transform:translateY(0);}
+
+.msg-row{display:flex; width:100%;}
+.msg-row.sent{justify-content:flex-end;}
+.msg-row.received{justify-content:flex-start;}
+
+.bubble{
+  position:relative; max-width:78%; padding:11px 16px 9px; border-radius:var(--radius);
+  font-size:.95rem; line-height:1.6;
+  opacity:0; transform:translateY(14px); transition:opacity .5s ease, transform .5s ease;
+}
+.msg-row.show .bubble, .show.bubble{opacity:1; transform:translateY(0);}
+
+.msg-row.sent .bubble{background:var(--bubble-sent); color:var(--bubble-sent-text); border-bottom-right-radius:6px;}
+.msg-row.received .bubble{background:var(--bubble-received); color:var(--bubble-received-text); border:1px solid var(--divider); border-bottom-left-radius:6px;}
+
+.bubble .time{display:block; font-family:var(--font-mono); font-size:.65rem; opacity:.65; margin-top:4px; text-align:left;}
+.bubble .reaction{position:absolute; bottom:-10px; left:-6px; font-size:.85rem; display:none;}
+.bubble .reaction.show{display:block; animation:pop .35s ease;}
+@keyframes pop{from{transform:scale(0);}to{transform:scale(1);}}
+
+.bubble.typing{display:flex; gap:5px; align-items:center; padding:14px 16px;}
+.bubble.typing span{width:7px; height:7px; border-radius:50%; background:var(--text-dim); animation:bounce 1.1s infinite;}
+.bubble.typing span:nth-child(2){animation-delay:.15s;}
+.bubble.typing span:nth-child(3){animation-delay:.3s;}
+@keyframes bounce{0%,60%,100%{transform:translateY(0); opacity:.5;}30%{transform:translateY(-5px); opacity:1;}}
+
+/* photo bubble */
+.bubble.photo{padding:0; overflow:hidden; max-width:72%;}
+.photo-placeholder{
+  aspect-ratio:4/3; background:repeating-linear-gradient(135deg, rgba(255,61,127,.18) 0 18px, rgba(200,255,77,.12) 18px 36px);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--text-dim);
+}
+.photo-placeholder span:first-child{font-size:1.8rem;}
+.photo-placeholder span:last-child{font-size:.72rem;}
+.photo-caption{padding:10px 14px;}
+.bubble.photo img{width:100%; display:block; aspect-ratio:4/3; object-fit:cover;}
+
+/* voice bubble */
+.bubble.voice{display:flex; align-items:center; gap:10px; max-width:72%;}
+.voice-play{
+  width:34px; height:34px; flex:none; border-radius:50%; background:rgba(0,0,0,.18);
+  display:flex; align-items:center; justify-content:center; font-size:.85rem;
+}
+.msg-row.received .voice-play{background:rgba(255,255,255,.06);}
+.waveform{display:flex; align-items:center; gap:2px; height:22px;}
+.waveform span{display:block; width:3px; border-radius:2px; background:currentColor; opacity:.55;}
+.bubble.voice.playing .waveform span{animation:wave .9s ease-in-out infinite;}
+.waveform span:nth-child(odd){animation-delay:.1s;}
+.waveform span:nth-child(3n){animation-delay:.2s;}
+@keyframes wave{0%,100%{transform:scaleY(.4);}50%{transform:scaleY(1);}}
+.voice-duration{font-family:var(--font-mono); font-size:.72rem; opacity:.75; white-space:nowrap;}
+.voice-audio{display:none;}
+.transcript{
+  grid-column:1/-1; width:100%; font-size:.82rem; color:var(--text-dim); margin-top:8px;
+  max-height:0; overflow:hidden; transition:max-height .4s ease;
+}
+.bubble.voice{flex-wrap:wrap;}
+.transcript.open{max-height:100px;}
+
+/* ===== Vault (inside jokes) ===== */
+#vault{max-width:680px; margin:60px auto 20px; padding:0 18px;}
+.section-title{font-family:var(--font-display); font-size:clamp(1.6rem,5vw,2.2rem); color:var(--accent); text-align:center; margin-bottom:6px;}
+.section-sub{text-align:center; color:var(--text-dim); font-size:.85rem; margin-bottom:28px;}
+.joke-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:14px;}
+.joke-card{aspect-ratio:1/1; perspective:800px;}
+.joke-inner{
+  position:relative; width:100%; height:100%; transition:transform .6s ease; transform-style:preserve-3d; border-radius:16px;
+}
+.joke-card.flipped .joke-inner{transform:rotateY(180deg);}
+.joke-face{
+  position:absolute; inset:0; backface-visibility:hidden; border-radius:16px;
+  display:flex; align-items:center; justify-content:center; text-align:center; padding:10px;
+}
+.joke-front{background:var(--bg-elevated); border:1px solid var(--divider); flex-direction:column; gap:6px;}
+.joke-front span:first-child{font-size:1.8rem;}
+.joke-front span:last-child{font-size:.82rem; font-weight:700;}
+.joke-back{background:var(--bubble-sent); color:var(--bubble-sent-text); transform:rotateY(180deg); font-size:.78rem; line-height:1.5;}
+.joke-card:nth-child(2n) .joke-front{transform:rotate(-2deg);}
+.joke-card:nth-child(3n) .joke-front{transform:rotate(2deg);}
+
+/* ===== Wrapped / stats ===== */
+#wrapped{margin-top:70px;}
+.wrap-scroll{display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none;}
+.wrap-scroll::-webkit-scrollbar{display:none;}
+.wslide{
+  scroll-snap-align:center; flex:none; width:100%; min-height:62vh;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:30px;
+}
+.wnum{font-family:var(--font-display); font-size:clamp(3rem,15vw,5.5rem); color:var(--accent); line-height:1;}
+.wlabel{margin-top:10px; color:var(--text-dim); font-size:.95rem;}
+.wnote{margin-top:18px; font-family:var(--font-mono); font-size:.65rem; color:#54546a;}
+.wquote{font-family:var(--font-display); font-size:clamp(1.6rem,7vw,2.6rem); color:var(--text); max-width:480px;}
+.dots{display:flex; justify-content:center; gap:8px; padding:18px 0 0;}
+.dot{width:8px; height:8px; border-radius:50%; border:1px solid var(--text-dim); background:none;}
+.dot.active{background:var(--accent); border-color:var(--accent);}
+
+/* ===== Ending ===== */
+#ending{max-width:560px; margin:40px auto 0; padding:30px 24px 60px; text-align:center;}
+.reveal-btn{
+  font-weight:800; color:#0d0d12; background:var(--accent); padding:14px 30px;
+  border-radius:999px; font-size:1rem; box-shadow:0 0 0 0 rgba(200,255,77,.4); animation:glow 2.6s ease-in-out infinite;
+}
+#finalText{margin-top:26px; opacity:0; max-height:0; overflow:auto; transition:opacity .8s ease;}
+#finalText.open{opacity:1; max-height:300px;}
+#finalText p{font-size:1.05rem; line-height:1.8;}
+.footer-credit{margin-top:50px; font-family:var(--font-mono); font-size:.7rem; color:#4d4d5e;}
+
+.confetti-heart{position:fixed; top:-40px; pointer-events:none; z-index:999; animation:confettiFall linear forwards;}
+@keyframes confettiFall{from{transform:translateY(0) rotate(0deg); opacity:1;} to{transform:translateY(112vh) rotate(360deg); opacity:.15;}}
+.float-heart{position:fixed; pointer-events:none; z-index:999; font-size:22px; animation:floatUp 1.1s ease-out forwards; transform:translate(-50%,-50%);}
+@keyframes floatUp{from{opacity:1; transform:translate(-50%,-50%) scale(.6);} to{opacity:0; transform:translate(-50%,-220%) scale(1.3);}}
+
+@media (max-width:420px){
+  .bubble{max-width:85%;}
+  #vault, #ending{padding-left:14px; padding-right:14px;}
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.01ms !important; transition-duration:.01ms !important;}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Lock screen ===== -->
+<div id="lock">
+  <div class="lock-heart">🤍</div>
+  <div class="lock-title">سنتين</div>
+  <div class="lock-sub">شات اتجمع فيه سنتين كاملة</div>
+  <div class="lock-days" id="lockDays">—</div>
+  <button class="enter-btn" id="enterBtn">افتح القصة</button>
+</div>
+
+<!-- ===== App ===== -->
+<div id="app">
+
+  <header class="app-header">
+    <button class="back-arrow" id="scrollTopBtn" aria-label="رجوع لفوق">→</button>
+    <div class="avatar" id="avatarInitial">؟</div>
+    <div class="header-info">
+      <div class="header-name" id="headerName">إحنا الاتنين</div>
+      <div class="header-status"><span class="status-dot"></span><span>متصلين من سنتين</span></div>
+    </div>
+    <div class="header-days" id="headerDays">—</div>
+  </header>
+
+  <main id="thread"></main>
+
+  <section id="vault">
+    <div class="section-title reveal">خزنة كلماتنا 🔐</div>
+    <div class="section-sub reveal">كل كارت فيه كلمه ما يفهمها غيرنا. دوس عليه يتقلب.</div>
+    <div class="joke-grid" id="jokeGrid"></div>
+  </section>
+
+  <section id="wrapped">
+    <div class="section-title reveal">ملخص السنتين ✦</div>
+    <div class="wrap-scroll" id="wrapScroll"></div>
+    <div class="dots" id="wrapDots"></div>
+  </section>
+
+  <section id="ending">
+    <button class="reveal-btn" id="revealBtn">🎁 افتح الرسالة الأخيرة</button>
+    <div id="finalText">
+      <p>حبيبت عمري العزيزه يعني سنتين عدو عليا من احسن سنين حياتي عدينا فيهم في حاجات صعبه كتير كتير اويا الصراحه بس الحمدللع
+      علي طول كنا بنعدي ولكن احنا الحمدلله علي طول اقوي من الفترات الصعبه وبتعدي دايما واحنا مع بعض عارف اد اي الفتره دي مش
+      احسن حاجه وعارف اني اد ايه مقصر معاكي مش قادر اقدملك زي ما انا بعمل دايما بس حقك عليا انا بجد مليش غيرك ونفسي طول الوقت
+      تبقي سعيده وفي احسن حال يا رب اشوفك دايما كويسه ودايما معايا يا روحي سنتين عدو هوا والله مش عارف عدو ازاي والله بس اهم
+      حاجه انهم عدو جنبك وانتي حواليا معهما حصل ما بينا واتخانقنا وزعلنا من بعض وجودك جنبي هو اكتر حاجه انا بحبها وبتبسط بيها
+      ويا رب تبقي دايما جنبي وحواليا واشوف فيكي دايما حبيبتي وصحبيتي وحياتي ودنتي وروحي وقلبي واخواتي وامي وابويا وكل الناس
+      عندي و يا رب يجعل الفتره الجايه احلي فترات حياتنا واخطبك ونعيش في تبات ونبات ونخلف صبيان وبنات يا حبيبت عمري
+</p>
+    </div>
+    <div class="footer-credit">اتعمل بحب 🫶 سنتين ومستمرين</div>
+  </section>
+
+</div>
+
+<script>
+/* ============================================================
+   🔧 منطقة التعديل — غيّر اللي هنا بس، باقي الكود مش لازم تلمسه
+   ============================================================ */
+const CONFIG = {
+  // الأسماء والتاريخ
+  names:{ me:'اوفي', partner:'زوزو' },
+  startDate:'2024-06-25T00:00:00', // 🔧 غيّر التاريخ ده لتاريخ بدايتكم الحقيقي
+
+  // الشات: date = فاصل تاريخ، msg = رسالة، photo = صورة، voice = صوت
+  // from: 'me' أو 'partner'. typingBefore: true يحط فقاعة "بيكتب..." قبلها
+  // 🔧 صورة حقيقية: حط src: 'photos/1.jpg' (مسار الصورة، جنب ملف الـ html ده أو في فولدر photos)
+  // 🔧 صوت حقيقي: حط src: 'voices/1.mp3' (مسار ملف الصوت، أي صيغة mp3/m4a/wav)
+  //     سيبت src فاضي '' → هيظهر شكل تجريبي (placeholder) بدل الملف الحقيقي
+  thread:[
+    {type:'date', text:'بداية الحكاية ✦'},
+    {type:'msg', from:'partner', text:'إيه ده، إنت بتتكلم كويس كده ليه؟ 😂', time:'٣:٤٠ م'},
+    {type:'msg', from:'me', text:'لا بصراحة كنت بحاول أعمل إيمبريشن بس 🤡', time:'٣:٤١ م', typingBefore:true},
+    {type:'msg', from:'partner', text:'😡😡😡😡حد يحب الصيف 😡😡😡😡', time:'٣:٤٢ م'},
+    {type:'msg', from:'me', text:'انا بقا هو في احلي من الصيف', time:'٣:٤٣ م'},
+    {type:'photo', from:'me', src:'photos/1.jpg', caption:'أول صورة سوا، ولسه فاكر تفاصيل اليوم'}, // 🔧 حط مسار صورتك: src:'photos/1.jpg'
+    {type:'voice', from:'me', src:'voices/1.m4a', duration:'٠:٣٩', transcript:'بحبك يا زينب، بموت فيك يا زينب بعشقك يا زينب،عمري محب حد غيرك أبداً أبداً أبداً يا زينب حقيقي سنتين من أحسن سنين حياتي حياتي بدأت لما دي دخلتيها فترة يعني يارب يارب نكمل حياتنا كلها مع بعض ونفضل شايفين بعض أحسن حد في الدنيا كلها ونفضل ممتنين لان احنا اخترنا بعض وان احنا بقينا مع بعض وبحبك يا زينب وطز فيكي'}, // 🔧 حط مسار صوتك: src:'voices/1.mp3'
+    {type:'msg', from:'partner', text:'باسمعك تاني وتاني، صوتك مبهدلني 😭', time:'٦:١٢ م', typingBefore:true},
+    {type:'date', text:"اول خناقه ما بينا...."},
+    {type:'msg', from:'me', text:'اول خناقه ما بينا كانت مره كنتي انتي فيها مع صحابك وساعتها اتخانقت معاكي عشان انتي اتاخرتي وساعتها كنتي خايفه اننا نسيب بعض بس انا ساعتها فهمتك بقا', time:'١١:٠٢ م'},
+    {type:'msg', from:'partner', text:'النهارده احلي يوم في حياتي', time:'النهارده', typingBefore:true},
+    {type:'msg', from:'me', text:'سنتين... وعدي لسه ماخلصش 🤍', time:'النهارده'}
+  ],
+
+  // خزنة النكت — 4 لـ 6 كارت أفضل
+  jokes:[
+    {emoji:'🍕', front:'بحبك', back:'طز فيكي يا زينب'},
+    {emoji:'🐌', front:'كلمة السر', back:'التوتو'},
+    {emoji:'🎵', front:'النوم', back:'كل دا نوم يا زينب'},
+    {emoji:'📵', front:'لما الموبايل يموت', back:'يخربيتك انت وموبايلك'}
+  ],
+
+  // ملخص السنتين — type: 'number' (رقم بيعد) أو 'text' (جملة كبيرة)
+  // live:true يخلي الرقم محسوب أوتوماتيك من تاريخ البداية (أيام مع بعض)
+  wrapped:[
+    {type:'number', label:'يوم مع بعض', live:true},
+    {type:'number', label:'رسالة  💬', target:365000},
+    {type:'number', label:'مكالمة عدّينا فيها نص الليل ☎️', target:100},
+    {type:'text', quote:'"طز فيك/ي"', label:'أكتر جملة بنقولها لبعض'},
+    {type:'text', quote:'لسه مع بعض. وعايزين نفضل كذا. 🤍', label:''}
+  ]
+};
+/* ============================================================
+   من هنا الكود الأساسي — تعديل اختياري
+   ============================================================ */
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('headerName').textContent = CONFIG.names.me + ' & ' + CONFIG.names.partner;
+  document.getElementById('avatarInitial').textContent = (CONFIG.names.me || '؟').trim().charAt(0);
+
+  buildThread();
+  buildJokes();
+  buildWrapped();
+  attachInteractions();
+  startLiveCounters();
+
+  document.getElementById('enterBtn').addEventListener('click', enterSite);
+  document.getElementById('scrollTopBtn').addEventListener('click', () => {
+    document.getElementById('thread').scrollIntoView({behavior:'smooth'});
+  });
+});
+
+function enterSite(){
+  const lock = document.getElementById('lock');
+  const app = document.getElementById('app');
+  lock.classList.add('hide');
+  app.classList.add('visible');
+  setTimeout(() => { lock.style.display = 'none'; }, 650);
+  initRevealObserver();
+}
+
+/* ---------- building the chat thread ---------- */
+function buildThread(){
+  const container = document.getElementById('thread');
+  CONFIG.thread.forEach(item => {
+    if(item.type === 'date'){
+      const div = document.createElement('div');
+      div.className = 'date-chip reveal';
+      div.textContent = item.text;
+      container.appendChild(div);
+      return;
+    }
+
+    if(item.typingBefore){
+      const t = document.createElement('div');
+      t.className = 'msg-row ' + (item.from === 'me' ? 'sent' : 'received') + ' reveal';
+      t.innerHTML = '<div class="bubble typing"><span></span><span></span><span></span></div>';
+      container.appendChild(t);
+    }
+
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + (item.from === 'me' ? 'sent' : 'received') + ' reveal';
+
+    if(item.type === 'msg'){
+      row.innerHTML = `<div class="bubble">${item.text}<span class="time">${item.time || ''}</span><span class="reaction"></span></div>`;
+    } else if(item.type === 'photo'){
+      // لو item.src موجود وفيه مسار حقيقي → نعرض <img> فعلي. غير كده → شكل تجريبي
+      const photoInner = item.src
+        ? `<img src="${item.src}" alt="${item.caption || 'صورة'}" loading="lazy">`
+        : `<div class="photo-placeholder"><span>📷</span><span>ضيف صورتك هنا</span></div>`;
+      row.innerHTML = `
+        <div class="bubble photo">
+          ${photoInner}
+          <div class="photo-caption">${item.caption || ''}<span class="reaction"></span></div>
+        </div>`;
+    } else if(item.type === 'voice'){
+      const bars = Array.from({length:14}).map((_, i) => `<span style="height:${8 + (i % 5) * 3}px"></span>`).join('');
+      // لو item.src موجود → نحط عنصر <audio> حقيقي (مخفي بصريًا، بيتشغل عن طريق زرار ▶)
+      const audioTag = item.src ? `<audio class="voice-audio" preload="metadata" src="${item.src}"></audio>` : '';
+      row.innerHTML = `
+        <div class="bubble voice">
+          <button class="voice-play" aria-label="شغّل التسجيل الصوتي">▶</button>
+          <div class="waveform">${bars}</div>
+          <span class="voice-duration">${item.duration || ''}</span>
+          <div class="transcript">${item.transcript || ''}</div>
+          <span class="reaction"></span>
+          ${audioTag}
+        </div>`;
+    }
+    container.appendChild(row);
+  });
+}
+
+/* ---------- jokes vault ---------- */
+function buildJokes(){
+  const grid = document.getElementById('jokeGrid');
+  CONFIG.jokes.forEach(j => {
+    const card = document.createElement('div');
+    card.className = 'joke-card reveal';
+    card.tabIndex = 0;
+    card.innerHTML = `
+      <div class="joke-inner">
+        <div class="joke-face joke-front"><span>${j.emoji}</span><span>${j.front}</span></div>
+        <div class="joke-face joke-back">${j.back}</div>
+      </div>`;
+    card.addEventListener('click', () => card.classList.toggle('flipped'));
+    card.addEventListener('keydown', e => {
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); card.classList.toggle('flipped'); }
+    });
+    grid.appendChild(card);
+  });
+}
+
+/* ---------- wrapped / stats slides ---------- */
+function buildWrapped(){
+  const scroll = document.getElementById('wrapScroll');
+  const dots = document.getElementById('wrapDots');
+
+  CONFIG.wrapped.forEach((w, i) => {
+    const slide = document.createElement('div');
+    slide.className = 'wslide reveal';
+    if(w.type === 'number'){
+      slide.innerHTML = `
+        <div class="wnum" data-target="${w.live ? '' : w.target}" data-live="${!!w.live}">0</div>
+        <div class="wlabel">${w.label}</div>
+        ${w.note ? `<div class="wnote">[${w.note}]</div>` : ''}`;
+    } else {
+      slide.innerHTML = `
+        <div class="wquote">${w.quote}</div>
+        ${w.label ? `<div class="wlabel">${w.label}</div>` : ''}
+        ${w.note ? `<div class="wnote">[${w.note}]</div>` : ''}`;
+    }
+    scroll.appendChild(slide);
+
+    const dot = document.createElement('button');
+    dot.className = 'dot' + (i === 0 ? ' active' : '');
+    dot.setAttribute('aria-label', 'سلايد ' + (i + 1));
+    dot.addEventListener('click', () => slide.scrollIntoView({behavior:'smooth', inline:'center'}));
+    dots.appendChild(dot);
+  });
+
+  const slideEls = scroll.querySelectorAll('.wslide');
+  const dotEls = dots.querySelectorAll('.dot');
+  const dotObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if(entry.isIntersecting){
+        const idx = Array.from(slideEls).indexOf(entry.target);
+        dotEls.forEach(d => d.classList.remove('active'));
+        if(dotEls[idx]) dotEls[idx].classList.add('active');
+      }
+    });
+  }, {root: scroll, threshold:0.6});
+  slideEls.forEach(s => dotObserver.observe(s));
+}
+
+/* ---------- interactions: voice play, reactions, ending ---------- */
+function attachInteractions(){
+  document.querySelectorAll('.voice-play').forEach(btn => {
+    const bubble = btn.closest('.bubble');
+    const audio = bubble.querySelector('.voice-audio');
+    const transcript = bubble.querySelector('.transcript');
+    const durationEl = bubble.querySelector('.voice-duration');
+
+    if(audio){
+      // لما الملف الصوتي الحقيقي يحمّل، نعرض مدته الفعلية بدل المدة المكتوبة في CONFIG
+      audio.addEventListener('loadedmetadata', () => {
+        if(isFinite(audio.duration)) durationEl.textContent = formatDuration(audio.duration);
+      });
+      // لما الصوت يخلص لوحده، نرجّع الزرار والفقاعة لحالتها الأصلية
+      audio.addEventListener('ended', () => {
+        bubble.classList.remove('playing');
+        btn.textContent = '▶';
+      });
+    }
+
+    btn.addEventListener('click', () => {
+      const playing = bubble.classList.toggle('playing');
+      btn.textContent = playing ? '❚❚' : '▶';
+      if(transcript) transcript.classList.toggle('open', playing);
+      if(audio){
+        if(playing) audio.play(); else audio.pause();
+      }
+    });
+  });
+
+  document.querySelectorAll('.bubble').forEach(b => {
+    b.addEventListener('dblclick', e => {
+      const r = b.querySelector('.reaction');
+      if(r){ r.textContent = '❤️'; r.classList.add('show'); }
+      spawnFloatingHeart(e.clientX, e.clientY);
+    });
+  });
+
+  document.getElementById('revealBtn').addEventListener('click', e => {
+    e.target.style.display = 'none';
+    document.getElementById('finalText').classList.add('open');
+    burstHearts();
+  });
+}
+
+function spawnFloatingHeart(x, y){
+  if(prefersReducedMotion()) return;
+  const el = document.createElement('div');
+  el.className = 'float-heart';
+  el.textContent = '❤️';
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1200);
+}
+
+function burstHearts(){
+  if(prefersReducedMotion()) return;
+  const items = ['❤️','💛','✨','💫'];
+  for(let i = 0; i < 26; i++){
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'confetti-heart';
+      el.textContent = items[Math.floor(Math.random() * items.length)];
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.fontSize = (16 + Math.random() * 18) + 'px';
+      el.style.animationDuration = (2 + Math.random() * 2) + 's';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 4200);
+    }, i * 45);
+  }
+}
+
+function prefersReducedMotion(){
+  return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function formatDuration(totalSeconds){
+  const m = Math.floor(totalSeconds / 60);
+  const s = Math.floor(totalSeconds % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+/* ---------- scroll reveal ---------- */
+function initRevealObserver(){
+  const els = document.querySelectorAll('.reveal');
+  const reduced = prefersReducedMotion();
+  if(reduced){
+    els.forEach(el => el.classList.add('show'));
+    return;
+  }
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if(entry.isIntersecting){
+        entry.target.classList.add('show');
+        io.unobserve(entry.target);
+      }
+    });
+  }, {threshold:0.2, rootMargin:'0px 0px -40px 0px'});
+  els.forEach(el => io.observe(el));
+}
+
+/* ---------- live days-together counters ---------- */
+function getDaysTogether(){
+  const diff = Date.now() - new Date(CONFIG.startDate).getTime();
+  return Math.max(0, Math.floor(diff / 86400000));
+}
+
+function animateCountUp(el, target, duration = 1200){
+  const start = performance.now();
+  function step(ts){
+    const progress = Math.min((ts - start) / duration, 1);
+    el.textContent = Math.floor(progress * target).toLocaleString('ar-EG');
+    if(progress < 1) requestAnimationFrame(step);
+    else el.textContent = target.toLocaleString('ar-EG');
+  }
+  requestAnimationFrame(step);
+}
+
+function startLiveCounters(){
+  const days = getDaysTogether();
+  const lockDays = document.getElementById('lockDays');
+  const headerDays = document.getElementById('headerDays');
+  if(lockDays) lockDays.textContent = days.toLocaleString('ar-EG') + ' يوم وعدّ';
+  if(headerDays) headerDays.textContent = days.toLocaleString('ar-EG') + ' يوم';
+
+  setInterval(() => {
+    const d = getDaysTogether();
+    if(lockDays) lockDays.textContent = d.toLocaleString('ar-EG') + ' يوم وعدّ';
+    if(headerDays) headerDays.textContent = d.toLocaleString('ar-EG') + ' يوم';
+  }, 60000);
+
+  // animate the live "days together" number in the wrapped slides once visible
+  const liveNum = document.querySelector('.wnum[data-live="true"]');
+  if(liveNum){
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if(entry.isIntersecting){
+          animateCountUp(entry.target, getDaysTogether());
+          obs.unobserve(entry.target);
+        }
+      });
+    }, {threshold:0.5});
+    obs.observe(liveNum);
+  }
+  // animate the static target numbers once visible
+  document.querySelectorAll('.wnum').forEach(el => {
+    if(el.dataset.live === 'true') return;
+    const target = parseInt(el.dataset.target, 10);
+    if(isNaN(target)) return;
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if(entry.isIntersecting){
+          animateCountUp(entry.target, target);
+          obs.unobserve(entry.target);
+        }
+      });
+    }, {threshold:0.5});
+    obs.observe(el);
+  });
+}
+</script>
+</body>
+</html>
