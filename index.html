@@ -219,6 +219,70 @@ button{font-family:inherit; cursor:pointer; background:none; border:none; color:
   #vault, #ending{padding-left:14px; padding-right:14px;}
 }
 
+/* ===== Music Player Bar ===== */
+.music-bar{
+  position:sticky; top:56px; z-index:19;
+  display:flex; align-items:center; gap:10px; padding:8px 16px;
+  background:linear-gradient(135deg, rgba(23,23,31,.97), rgba(30,20,40,.97));
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--divider);
+  font-size:.82rem;
+  opacity:0; max-height:0; overflow:hidden;
+  transition:opacity .6s ease, max-height .6s ease;
+}
+.music-bar.active{opacity:1; max-height:60px;}
+
+.music-toggle{
+  width:34px; height:34px; flex:none; border-radius:50%;
+  background:linear-gradient(135deg, var(--bubble-sent), #ff8fb3);
+  display:flex; align-items:center; justify-content:center;
+  font-size:.95rem; color:#fff;
+  transition:transform .2s ease, box-shadow .3s ease;
+  box-shadow:0 0 12px rgba(255,61,127,.3);
+}
+.music-toggle:hover{transform:scale(1.1); box-shadow:0 0 20px rgba(255,61,127,.5);}
+.music-toggle:active{transform:scale(.95);}
+
+.music-info{flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;}
+.music-title{
+  font-weight:700; font-size:.78rem; color:var(--text);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.music-artist{font-size:.68rem; color:var(--text-dim);}
+
+.music-eq{
+  display:flex; align-items:flex-end; gap:2px; height:18px; flex:none;
+}
+.music-eq span{
+  display:block; width:3px; border-radius:2px;
+  background:var(--bubble-sent);
+  transition:height .15s ease;
+}
+.music-eq.playing span{animation:eqBounce .8s ease-in-out infinite alternate;}
+.music-eq span:nth-child(1){height:6px; animation-delay:0s;}
+.music-eq span:nth-child(2){height:12px; animation-delay:.1s;}
+.music-eq span:nth-child(3){height:8px; animation-delay:.2s;}
+.music-eq span:nth-child(4){height:14px; animation-delay:.05s;}
+.music-eq span:nth-child(5){height:5px; animation-delay:.15s;}
+@keyframes eqBounce{
+  0%{transform:scaleY(.3);}
+  100%{transform:scaleY(1);}
+}
+.music-eq:not(.playing) span{height:4px !important; animation:none;}
+
+.music-progress-wrap{
+  position:absolute; bottom:0; left:0; right:0; height:3px;
+  background:rgba(255,255,255,.06); cursor:pointer;
+}
+.music-progress{
+  height:100%; width:0%; border-radius:0 2px 2px 0;
+  background:linear-gradient(90deg, var(--bubble-sent), var(--accent));
+  transition:width .25s linear;
+}
+.music-time{
+  font-family:var(--font-mono); font-size:.65rem; color:var(--text-dim); white-space:nowrap; flex:none;
+}
+
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.01ms !important; transition-duration:.01ms !important;}
 }
@@ -247,6 +311,25 @@ button{font-family:inherit; cursor:pointer; background:none; border:none; color:
     </div>
     <div class="header-days" id="headerDays">—</div>
   </header>
+
+  <!-- Music Player Bar -->
+  <div class="music-bar" id="musicBar">
+    <button class="music-toggle" id="musicToggle" aria-label="تشغيل/إيقاف الموسيقى">▶</button>
+    <div class="music-info">
+      <div class="music-title">نقول إيه — عمرو دياب 🎵</div>
+      <div class="music-artist">أغنية الذكرى</div>
+    </div>
+    <div class="music-eq" id="musicEq">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="music-time" id="musicTime">٠:٠٠</div>
+    <div class="music-progress-wrap" id="musicProgressWrap">
+      <div class="music-progress" id="musicProgress"></div>
+    </div>
+    <audio id="bgMusic" preload="auto" loop>
+      <source src="https://youpoij9.github.io/2-years/music/nqol-eih.webm" type="audio/webm">
+    </audio>
+  </div>
 
   <main id="thread"></main>
 
@@ -353,6 +436,7 @@ function enterSite(){
   app.classList.add('visible');
   setTimeout(() => { lock.style.display = 'none'; }, 650);
   initRevealObserver();
+  initMusicPlayer();
 }
 
 /* ---------- building the chat thread ---------- */
@@ -628,6 +712,67 @@ function startLiveCounters(){
       });
     }, {threshold:0.5});
     obs.observe(el);
+  });
+}
+
+/* ---------- background music player ---------- */
+function initMusicPlayer(){
+  const audio = document.getElementById('bgMusic');
+  const bar = document.getElementById('musicBar');
+  const toggle = document.getElementById('musicToggle');
+  const eq = document.getElementById('musicEq');
+  const progress = document.getElementById('musicProgress');
+  const progressWrap = document.getElementById('musicProgressWrap');
+  const timeEl = document.getElementById('musicTime');
+
+  if(!audio || !bar) return;
+
+  // show the bar with a nice entrance
+  setTimeout(() => {
+    bar.classList.add('active');
+  }, 400);
+
+  // try autoplay (browsers may block it)
+  audio.volume = 0.35;
+  const playPromise = audio.play();
+  if(playPromise !== undefined){
+    playPromise.then(() => {
+      toggle.textContent = '❚❚';
+      eq.classList.add('playing');
+    }).catch(() => {
+      // autoplay blocked, user needs to click
+      toggle.textContent = '▶';
+      eq.classList.remove('playing');
+    });
+  }
+
+  // toggle play/pause
+  toggle.addEventListener('click', () => {
+    if(audio.paused){
+      audio.play();
+      toggle.textContent = '❚❚';
+      eq.classList.add('playing');
+    } else {
+      audio.pause();
+      toggle.textContent = '▶';
+      eq.classList.remove('playing');
+    }
+  });
+
+  // update progress bar and time
+  audio.addEventListener('timeupdate', () => {
+    if(!isFinite(audio.duration)) return;
+    const pct = (audio.currentTime / audio.duration) * 100;
+    progress.style.width = pct + '%';
+    timeEl.textContent = formatDuration(audio.currentTime);
+  });
+
+  // seek on click
+  progressWrap.addEventListener('click', (e) => {
+    if(!isFinite(audio.duration)) return;
+    const rect = progressWrap.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    audio.currentTime = pct * audio.duration;
   });
 }
 </script>
